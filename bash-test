@@ -44,6 +44,7 @@ btStartTest() {
   bt_test_succeeded=1
 }
 
+
 # User Function
 btExpectFail() {
   if (( bt_test_active )); then
@@ -52,6 +53,7 @@ btExpectFail() {
     [[ $rc -ne 0 ]]
   fi
 }
+
 
 # User Function
 btInfo() {
@@ -63,6 +65,7 @@ btInfo() {
   btPrintf "info" "$btMsg"
 }
 
+
 # User Function
 btWarn() {
   if (( bt_test_active )); then
@@ -72,6 +75,7 @@ btWarn() {
   btMsg="$1"
   btPrintf "warn" "$btMsg"
 }
+
 
 # User & System Function
 btEndTest() {
@@ -87,6 +91,7 @@ btEndTest() {
   fi
 }
 
+
 # User & System Function
 btMute() {
   exec 5>&1 6>&2
@@ -94,11 +99,13 @@ btMute() {
   btMuted=1
 }
 
+
 # User & System Function
 btUnmute() {
   exec 1>&5 2>&6
   btMuted=0
 }
+
 
 # System Function --- Do not use
 btExitRoute() {
@@ -111,6 +118,7 @@ btExitRoute() {
   
   exit $btRc
 }
+
 
 # System Function --- Do not use
 btPrintf() {
