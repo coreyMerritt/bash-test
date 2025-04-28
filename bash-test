@@ -17,8 +17,13 @@ while [[ $# -gt 0 ]]; do
       very_verbose=1
       shift
       ;;
-    --) shift; break ;;
-    *) break ;;
+    --) shift
+        break
+        ;;
+    -*) shift
+        ;;
+    *)  break
+        ;;
   esac
 done
 ! (( ignore_errors )) && set -eE
@@ -26,107 +31,116 @@ done
 
 
 # User Function
-startTest() {
-  if (( test_active )); then
-    endTest
+btStartTest() {
+  if (( bt_test_active )); then
+    btEndTest
   fi
   
-  goal="$1"
-  btPrintf "start_test" "$goal"
+  btGoal="$1"
+  btPrintf "start_test" "$btGoal"
   
-  trap 'test_succeeded=0; endTest' ERR
-  test_active=1
-  test_succeeded=1
+  trap 'bt_test_succeeded=0; btEndTest' ERR
+  bt_test_active=1
+  bt_test_succeeded=1
 }
 
 # User Function
-info() {
-  if (( test_active )); then
-    endTest
+btExpectFail() {
+  if (( bt_test_active )); then
+    command="$@"
+    rc=0 && $command || rc=$?
+    [[ $rc -ne 0 ]]
   fi
-
-  msg="$1"
-  btPrintf "info" "$msg"
 }
 
 # User Function
-warn() {
-  if (( test_active )); then
-    endTest
+btInfo() {
+  if (( bt_test_active )); then
+    btEndTest
   fi
 
-  msg="$1"
-  btPrintf "warn" "$msg"
+  btMsg="$1"
+  btPrintf "info" "$btMsg"
+}
+
+# User Function
+btWarn() {
+  if (( bt_test_active )); then
+    btEndTest
+  fi
+
+  btMsg="$1"
+  btPrintf "warn" "$btMsg"
 }
 
 # User & System Function
-endTest() {
-  if (( test_active )); then
+btEndTest() {
+  if (( bt_test_active )); then
     trap - ERR
-    test_active=0
+    bt_test_active=0
 
-    btPrintf "end_test" "$goal"
-    
-    if ! (( test_succeeded )) && ! (( ignore_errors )); then
-      exitRoute 1
+    btPrintf "end_test" "$btGoal"
+
+    if ! (( bt_test_succeeded )) && ! (( ignore_errors )); then
+      btExitRoute 1
     fi
   fi
 }
 
 # User & System Function
-mute() {
+btMute() {
   exec 5>&1 6>&2
   exec &> /dev/null
-  muted=1
+  btMuted=1
 }
 
 # User & System Function
-unmute() {
+btUnmute() {
   exec 1>&5 2>&6
-  muted=0
+  btMuted=0
 }
 
 # System Function --- Do not use
-exitRoute() {
+btExitRoute() {
   trap - EXIT ERR INT TERM
-  rc=$1
+  btRc=$1
 
-  if (( muted )); then
-    unmute
+  if (( btMuted )); then
+    btUnmute
   fi
   
-  exit $rc
+  exit $btRc
 }
 
 # System Function --- Do not use
 btPrintf() {
-  overwrite_last_line="\r"
-  success_indicator="\033[38;2;0;255;0m✔"
-  fail_indicator="\033[38;2;255;0;0m✗"
-  pending_indicator="\033[38;2;255;255;0m➤"
-  info_indicator="\033[38;2;0;255;255m🛈 "
-  warn_indicator="\033[38;5;208m⚠️ "
+  bt_overwrite_last_line="\r"
+  bt_success_indicator="\033[38;2;0;255;0m✔"
+  bt_fail_indicator="\033[38;2;255;0;0m✗"
+  bt_pending_indicator="\033[38;2;255;255;0m➤"
+  bt_info_indicator="\033[38;2;0;255;255m🛈 "
+  bt_warn_indicator="\033[38;5;208m⚠️ "
  
-  was_muted=0
-  if (( muted )); then
-    unmute
-    was_muted=1
+  bt_was_muted=0
+  if (( btMuted )); then
+    btUnmute
+    bt_was_muted=1
   fi
 
   if [[ "$1" == "start_test" || "$1" == "end_test" ]] && ! (( verbose )); then
-    printf "$overwrite_last_line"
+    printf "$bt_overwrite_last_line"
   fi
  
-  if [[ "$1" == "end_test" ]] && (( test_succeeded )); then
-    printf "$success_indicator " && newline=1
-  elif [[ "$1" == "end_test" ]] && ! (( test_succeeded )); then
-    printf "$fail_indicator " && newline=1
+  if [[ "$1" == "end_test" ]] && (( bt_test_succeeded )); then
+    printf "$bt_success_indicator " && bt_newline=1
+  elif [[ "$1" == "end_test" ]] && ! (( bt_test_succeeded )); then
+    printf "$bt_fail_indicator " && bt_newline=1
   elif [[ "$1" == "start_test" ]]; then
-    printf "$pending_indicator "
+    printf "$bt_pending_indicator "
   elif [[ "$1" == "info" ]]; then
-    printf "$info_indicator" && newline=1
+    printf "$bt_info_indicator" && bt_newline=1
   elif [[ "$1" == "warn" ]]; then
-    printf "$warn_indicator" && newline=1
+    printf "$bt_warn_indicator" && bt_newline=1
   fi
   
   if [[ "$1" == "start_test" || "$1" == "end_test" || "$1" == "info" || "$1" == "warn" ]]; then
@@ -135,53 +149,53 @@ btPrintf() {
 
   printf "$@\033[0m"
 
-  if (( verbose )) || (( newline )); then
+  if (( verbose )) || (( bt_newline )); then
     printf "\n"
-    newline=0
+    bt_newline=0
   fi
 
-  if (( was_muted )); then
-    mute
+  if (( bt_was_muted )); then
+    btMute
   fi
 }
 
 
 # Mute if the user requested it 
 if ! (( verbose )); then
-  mute
+  btMute
 fi
 
 
 # Ensure the user can always SIGINT out
-trap 'test_succeeded=0; exitRoute 1' INT
-trap 'endTest' EXIT
+trap 'bt_test_succeeded=0; btExitRoute 1' INT
+trap 'btEndTest' EXIT
 
 
 # Install Coreutils to gather some data if we don't already have it
-installCoreutils() {
+btInstallCoreUtils() {
   dnf install -y --allowerasing coreutils >/dev/null 2>&1 \
     || apt-get install -y --fix-broken coreutils >/dev/null 2>&1
 }
 set -o pipefail
-dpkg -L coreutils >/dev/null 2>&1 || rpm -q coreutils >/dev/null 2>&1 || installCoreutils >/dev/null 2>&1
+dpkg -L coreutils >/dev/null 2>&1 || rpm -q coreutils >/dev/null 2>&1 || btInstallCoreUtils >/dev/null 2>&1
 
 
 # Set some default values
-test_active=0
-test_succeeded=0
+bt_test_active=0
+bt_test_succeeded=0
 
 
 # System constants
-SCRIPT_PATH="$(readlink -f "$0")"
+BT_SCRIPT_PATH="$(readlink -f "$0")"
 
 
 # User constants
-TESTS_DIR="$(dirname "$SCRIPT_PATH")"
-PROJECT_DIR="$(dirname "$TESTS_DIR")"
+BT_TESTS_DIR="$(dirname "$BT_SCRIPT_PATH")"
+BT_PROJECT_DIR="$(dirname "$BT_TESTS_DIR")"
 if test -f /.dockerenv; then
-  IN_CONTAINER=1
+  BT_IN_CONTAINER=1
 else
-  IN_CONTAINER=0
+  BT_IN_CONTAINER=0
 fi
 
 
