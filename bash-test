@@ -186,16 +186,16 @@ bt_test_succeeded=0
 
 
 # System constants
-BT_SCRIPT_PATH="$(readlink -f "$0")"
+bt_script_path="$(readlink -f "$0")"
 
 
 # User constants
-BT_TESTS_DIR="$(dirname "$BT_SCRIPT_PATH")"
-BT_PROJECT_DIR="$(dirname "$BT_TESTS_DIR")"
+bt_tests_dir="$(dirname "$bt_script_path")"
+bt_project_dir="$(dirname "$bt_tests_dir")"
 if test -f /.dockerenv; then
-  BT_IN_CONTAINER=1
+  bt_in_container=1
 else
-  BT_IN_CONTAINER=0
+  bt_in_container=0
 fi
 
 
