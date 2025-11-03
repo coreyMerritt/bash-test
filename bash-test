@@ -176,7 +176,7 @@ fi
 
 # Ensure the user can always SIGINT out
 trap 'bt_test_succeeded=0; btExitRoute 1' INT
-trap 'btEndTest' EXIT
+trap 'rc=$?; if [[ $rc -ne 0 ]]; then bt_test_succeeded=0; fi; btEndTest' EXIT
 
 
 # Install Coreutils to gather some data if we don't already have it
