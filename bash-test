@@ -85,8 +85,16 @@ btEndTest() {
 
     btPrintf "end_test" "$btGoal"
 
-    if ! (( bt_test_succeeded )) && ! (( ignore_errors )); then
-      btExitRoute 1
+    if ! (( ignore_errors )); then
+      if (( bt_expect_success )); then
+        if ! (( bt_test_succeeded )); then
+          btExitRoute 1
+        fi
+      else
+        if (( bt_test_succeeded )); then
+          btExitRoute 1
+        fi
+      fi
     fi
   fi
 }
@@ -116,7 +124,7 @@ btExitRoute() {
     btUnmute
   fi
   
-  exit $btRc
+  builtin 'exit' $btRc
 }
 
 
@@ -139,9 +147,13 @@ btPrintf() {
     printf "$bt_overwrite_last_line"
   fi
  
-  if [[ "$1" == "end_test" ]] && (( bt_test_succeeded )); then
+  if [[ "$1" == "end_test" ]] && (( bt_expect_success )) && (( bt_test_succeeded )); then
     printf "$bt_success_indicator " && bt_newline=1
-  elif [[ "$1" == "end_test" ]] && ! (( bt_test_succeeded )); then
+  elif [[ "$1" == "end_test" ]] && ! (( bt_expect_success )) && ! (( bt_test_succeeded )); then ###
+    printf "$bt_success_indicator " && bt_newline=1
+  elif [[ "$1" == "end_test" ]] && (( bt_expect_success )) && ! (( bt_test_succeeded )); then
+    printf "$bt_fail_indicator " && bt_newline=1
+  elif [[ "$1" == "end_test" ]] && ! (( bt_expect_success )) && (( bt_test_succeeded )); then
     printf "$bt_fail_indicator " && bt_newline=1
   elif [[ "$1" == "start_test" ]]; then
     printf "$bt_pending_indicator "
@@ -176,7 +188,28 @@ fi
 
 # Ensure the user can always SIGINT out
 trap 'bt_test_succeeded=0; btExitRoute 1' INT
-trap 'rc=$?; if [[ $rc -ne 0 ]]; then bt_test_succeeded=0; fi; btEndTest' EXIT
+
+# Exit traps, (exit() is overriding shell built-in)
+trap 'btEndTest' EXIT
+exit() {
+  rc=${1:-$?}
+  if [[ $rc -eq 0 ]]; then
+    bt_test_succeeded=1
+  else
+    bt_test_succeeded=0
+  fi
+  btEndTest
+  # super to builtin if we actually want to exit
+  if (( bt_expect_success )); then
+    if [[ $rc -ne 0 ]]; then
+      builtin exit "$rc"
+    fi
+  else
+    if [[ $rc -eq 0 ]]; then
+      builtin exit "$rc"
+    fi
+  fi
+}
 
 
 # Install Coreutils to gather some data if we don't already have it
@@ -191,6 +224,7 @@ dpkg -L coreutils >/dev/null 2>&1 || rpm -q coreutils >/dev/null 2>&1 || btInsta
 # Set some default values
 bt_test_active=0
 bt_test_succeeded=0
+bt_expect_success=1
 
 
 # System constants
